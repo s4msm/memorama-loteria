@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memorama de la Lotería 🇲🇽</title>
+<style>
+  :root{
+    --rosa:#e6007e; --verde:#00a651; --amarillo:#ffc20e; --naranja:#f26522;
+    --azul:#00aeef; --morado:#7b2d8e; --fondo:#fff7e6; --tinta:#2b1a12;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family: Georgia, "Times New Roman", serif;
+    background:var(--fondo); color:var(--tinta);
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    -webkit-tap-highlight-color:transparent;
+  }
+  /* Papel picado */
+  .papel{display:flex;width:100%;height:46px;overflow:hidden}
+  .papel span{flex:1;clip-path:polygon(0 0,100% 0,100% 70%,85% 100%,70% 70%,50% 100%,30% 70%,15% 100%,0 70%)}
+  .papel span:nth-child(5n+1){background:var(--rosa)}
+  .papel span:nth-child(5n+2){background:var(--verde)}
+  .papel span:nth-child(5n+3){background:var(--amarillo)}
+  .papel span:nth-child(5n+4){background:var(--naranja)}
+  .papel span:nth-child(5n+5){background:var(--azul)}
+  h1{margin:14px 12px 4px;font-size:clamp(1.5rem,6vw,2.4rem);text-align:center;letter-spacing:1px}
+  .sub{font-style:italic;text-align:center;margin:0 16px 10px;font-size:.95rem}
+  .marcador{display:flex;gap:10px;margin:6px 0 12px;flex-wrap:wrap;justify-content:center}
+  .chip{background:#fff;border:3px solid var(--tinta);border-radius:999px;padding:6px 14px;font-weight:bold}
+  .tablero{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+    width:min(94vw,480px);padding:0 4px 12px;
+  }
+  .carta{aspect-ratio:3/4;perspective:700px;cursor:pointer;border:none;background:none;padding:0}
+  .interior{position:relative;width:100%;height:100%;transition:transform .45s;transform-style:preserve-3d}
+  .carta.volteada .interior,.carta.par .interior{transform:rotateY(180deg)}
+  .cara{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:8px;border:3px solid var(--tinta);display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+  .reverso{
+    background:
+      repeating-linear-gradient(45deg,var(--rosa) 0 10px,var(--morado) 10px 20px);
+  }
+  .reverso::after{content:"★";color:var(--amarillo);font-size:2rem;text-shadow:0 0 0 #000,2px 2px 0 var(--tinta)}
+  .frente{background:#fffdf5;transform:rotateY(180deg);padding:4px}
+  .num{position:absolute;top:3px;left:6px;font-size:.7rem;font-weight:bold}
+  .emoji{font-size:clamp(1.8rem,9vw,2.8rem);line-height:1;margin-top:6px}
+  .nombre{position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:clamp(.55rem,2.6vw,.8rem);font-weight:bold;text-transform:uppercase}
+  .carta.par .frente{background:#e9ffe9;border-color:var(--verde)}
+  .carta.par{animation:brinco .4s}
+  @keyframes brinco{50%{transform:scale(1.08)}}
+  .cantor{min-height:2.6em;margin:2px 16px 8px;text-align:center;font-style:italic;max-width:480px}
+  button.btn{
+    font-family:inherit;font-size:1rem;font-weight:bold;background:var(--amarillo);color:var(--tinta);
+    border:3px solid var(--tinta);border-radius:10px;padding:10px 20px;cursor:pointer;box-shadow:3px 3px 0 var(--tinta)
+  }
+  button.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--tinta)}
+  .modal{position:fixed;inset:0;background:rgba(43,26,18,.7);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
+  .modal.abierto{display:flex}
+  .caja{background:var(--fondo);border:4px solid var(--tinta);border-radius:14px;padding:22px;text-align:center;max-width:340px}
+  .caja h2{font-size:2.2rem;color:var(--rosa);margin-bottom:8px}
+  .caja p{margin-bottom:14px}
+  footer{margin:auto 0 12px;font-size:.8rem;opacity:.7;text-align:center;padding-top:10px}
+  #confeti{position:fixed;inset:0;pointer-events:none;z-index:11}
+</style>
+</head>
+<body>
+  <div class="papel" id="papel"></div>
+
+  <h1>🪅 Memorama de la Lotería 🪅</h1>
+  <p class="sub">Encuentra los 8 pares antes de que se enfríen los tamales</p>
+
+  <div class="marcador">
+    <span class="chip">⏱️ <span id="tiempo">0</span>s</span>
+    <span class="chip">🃏 <span id="movs">0</span> tiros</span>
+    <span class="chip">⭐ <span id="pares">0</span>/8</span>
+  </div>
+
+  <p class="cantor" id="cantor">¡Corre y se va corriendo! Voltea dos cartas…</p>
+
+  <div class="tablero" id="tablero"></div>
+
+  <button class="btn" id="reiniciar">🔄 Barajar otra vez</button>
+
+  <footer>Hecho por Andrea · Nerdearla México 2026 · Desplegado con AWS Amplify</footer>
+
+  <div class="modal" id="modal">
+    <div class="caja">
+      <h2>¡LOTERÍA!</h2>
+      <p id="resumen"></p>
+      <button class="btn" id="otra">¡Otra partida!</button>
+    </div>
+  </div>
+  <canvas id="confeti"></canvas>
+
+<script>
+  // Cartas: número, nombre, emoji y verso del "gritón"
+  const CARTAS = [
+    {n:1,  nombre:"El Taco",      e:"🌮", verso:"El que nunca falla en la taquería."},
+    {n:2,  nombre:"El Nopal",     e:"🌵", verso:"Al nopal sólo se le arriman cuando tiene tunas."},
+    {n:3,  nombre:"La Piñata",    e:"🪅", verso:"Dale, dale, dale, no pierdas el tino."},
+    {n:4,  nombre:"La Calavera",  e:"💀", verso:"Tanto bailó con la flaca que se la llevó."},
+    {n:5,  nombre:"El Chile",     e:"🌶️", verso:"Pica pero no se raja."},
+    {n:6,  nombre:"El Aguacate",  e:"🥑", verso:"Oro verde de Michoacán."},
+    {n:7,  nombre:"La Trompeta",  e:"🎺", verso:"Suena el mariachi, ¡ajúa!"},
+    {n:8,  nombre:"El Elote",     e:"🌽", verso:"Con mayonesa, queso y chilito."},
+  ];
+
+  const tablero = document.getElementById("tablero");
+  const $tiempo = document.getElementById("tiempo");
+  const $movs = document.getElementById("movs");
+  const $pares = document.getElementById("pares");
+  const $cantor = document.getElementById("cantor");
+  const modal = document.getElementById("modal");
+
+  let primera = null, bloqueado = false, movs = 0, pares = 0, segundos = 0, reloj = null;
+
+  // Papel picado
+  const papel = document.getElementById("papel");
+  for (let i = 0; i < 14; i++) papel.appendChild(document.createElement("span"));
+
+  function barajar(arr){
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function iniciar(){
+    clearInterval(reloj); reloj = null;
+    primera = null; bloqueado = false; movs = 0; pares = 0; segundos = 0;
+    $movs.textContent = 0; $pares.textContent = 0; $tiempo.textContent = 0;
+    $cantor.textContent = "¡Corre y se va corriendo! Voltea dos cartas…";
+    modal.classList.remove("abierto");
+    tablero.innerHTML = "";
+    barajar([...CARTAS, ...CARTAS]).forEach(c => {
+      const b = document.createElement("button");
+      b.className = "carta";
+      b.dataset.n = c.n;
+      b.setAttribute("aria-label", "Carta boca abajo");
+      b.innerHTML = `
+        <div class="interior">
+          <div class="cara reverso"></div>
+          <div class="cara frente">
+            <span class="num">${c.n}</span>
+            <span class="emoji">${c.e}</span>
+            <span class="nombre">${c.nombre}</span>
+          </div>
+        </div>`;
+      b.addEventListener("click", () => voltear(b, c));
+      tablero.appendChild(b);
+    });
+  }
+
+  function voltear(carta, datos){
+    if (bloqueado || carta === primera || carta.classList.contains("par")) return;
+    if (!reloj) reloj = setInterval(() => $tiempo.textContent = ++segundos, 1000);
+
+    carta.classList.add("volteada");
+    carta.setAttribute("aria-label", datos.nombre);
+
+    if (!primera) { primera = carta; return; }
+
+    movs++; $movs.textContent = movs;
+    if (primera.dataset.n === carta.dataset.n) {
+      primera.classList.add("par"); carta.classList.add("par");
+      pares++; $pares.textContent = pares;
+      $cantor.textContent = `🎤 ${datos.nombre}: “${datos.verso}”`;
+      primera = null;
+      if (pares === CARTAS.length) ganar();
+    } else {
+      bloqueado = true;
+      const a = primera; primera = null;
+      setTimeout(() => {
+        a.classList.remove("volteada"); carta.classList.remove("volteada");
+        a.setAttribute("aria-label", "Carta boca abajo");
+        carta.setAttribute("aria-label", "Carta boca abajo");
+        bloqueado = false;
+      }, 800);
+    }
+  }
+
+  function ganar(){
+    clearInterval(reloj);
+    const estrellas = movs <= 10 ? "⭐⭐⭐" : movs <= 16 ? "⭐⭐" : "⭐";
+    document.getElementById("resumen").innerHTML =
+      `Lo lograste en <b>${segundos} s</b> y <b>${movs} tiros</b>.<br>${estrellas}`;
+    setTimeout(() => { modal.classList.add("abierto"); confeti(); }, 500);
+  }
+
+  // Confeti sencillo
+  function confeti(){
+    const cv = document.getElementById("confeti"), ctx = cv.getContext("2d");
+    cv.width = innerWidth; cv.height = innerHeight;
+    const colores = ["#e6007e","#00a651","#ffc20e","#f26522","#00aeef","#7b2d8e"];
+    const ps = Array.from({length:140}, () => ({
+      x: Math.random()*cv.width, y: -20 - Math.random()*cv.height,
+      w: 6+Math.random()*6, h: 8+Math.random()*8, vy: 2+Math.random()*3,
+      vx: -1+Math.random()*2, r: Math.random()*6, c: colores[Math.floor(Math.random()*colores.length)]
+    }));
+    let frames = 0;
+    (function paso(){
+      ctx.clearRect(0,0,cv.width,cv.height);
+      ps.forEach(p => {
+        p.y += p.vy; p.x += p.vx; p.r += .1;
+        ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r);
+        ctx.fillStyle = p.c; ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h); ctx.restore();
+      });
+      if (++frames < 260) requestAnimationFrame(paso); else ctx.clearRect(0,0,cv.width,cv.height);
+    })();
+  }
+
+  document.getElementById("reiniciar").addEventListener("click", iniciar);
+  document.getElementById("otra").addEventListener("click", iniciar);
+  iniciar();
+</script>
+</body>
+</html>
